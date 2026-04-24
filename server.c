@@ -133,9 +133,12 @@ int main(void)
             continue;
         }
 
-        inet_ntop(client_addr.ss_family,
-                  get_in_addr((struct sockaddr *)&client_addr),
-                  client_ip, sizeof client_ip);
+        if (inet_ntop(client_addr.ss_family,
+                      get_in_addr((struct sockaddr *)&client_addr),
+                      client_ip, sizeof client_ip) == NULL) {
+            perror("inet_ntop");
+            strcpy(client_ip, "<unknown>");
+        }
 
         printf("[+] Connection from %s:%u\n",
                client_ip,
