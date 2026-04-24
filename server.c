@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -34,6 +35,25 @@ static unsigned short get_in_port(struct sockaddr *sa)
 static void sigpipe_handler(int sig)
 {
     (void)sig;
+}
+
+static void print_escaped_payload(const char *buf, size_t len)
+{
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)buf[i];
+
+        if (c == '\\') {
+            fputs("\\\\", stdout);
+        } else if (c == '"') {
+            fputs("\\\"", stdout);
+        } else if (isprint(c)) {
+            putchar(c);
+        } else {
+            printf("\\x%02X", c);
+        }
+    }
 }
 
 int main(void)
@@ -132,7 +152,9 @@ int main(void)
             }
 
             buf[numbytes] = '\0';
-            printf("    ← recv %d bytes: \"%s\"\n", numbytes, buf);
+            printf("    ← recv %d bytes: \"", numbytes);
+            print_escaped_payload(buf, (size_t)numbytes);
+            printf("\"\n");
 
             if (send(clientfd, buf, numbytes, 0) == -1) {
                 perror("send");
