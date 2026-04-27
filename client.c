@@ -67,9 +67,12 @@ int main(int argc, char *argv[])
         exit(2);
     }
 
-    inet_ntop(p->ai_family,
-              get_in_addr((struct sockaddr *)p->ai_addr),
-              server_ip, sizeof server_ip);
+    if (inet_ntop(p->ai_family,
+                  get_in_addr((struct sockaddr *)p->ai_addr),
+                  server_ip, sizeof server_ip) == NULL) {
+        perror("inet_ntop");
+        strcpy(server_ip, "<unknown>");
+    }
 
     printf("=== BeejNet Client ===\n");
     printf("Connected to %s:%s\n", server_ip, PORT);
