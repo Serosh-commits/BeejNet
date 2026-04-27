@@ -113,7 +113,9 @@ int main(int argc, char *argv[])
         }
 
         buf[numbytes] = '\0';
-        printf("srv> %s\n", buf);
+        printf("srv> ");
+        fwrite(buf, 1, (size_t)numbytes, stdout);
+        printf("\n");
     }
 
     close(sockfd);
