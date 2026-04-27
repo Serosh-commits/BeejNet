@@ -97,6 +97,7 @@ int main(void)
         if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
             perror("setsockopt");
             close(sockfd);
+            freeaddrinfo(servinfo);
             exit(1);
         }
 
