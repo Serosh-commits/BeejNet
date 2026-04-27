@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
 
     if (p == NULL) {
         fprintf(stderr, "client: failed to connect\n");
+        freeaddrinfo(servinfo);
         exit(2);
     }
 
