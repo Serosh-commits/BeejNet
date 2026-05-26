@@ -115,7 +115,6 @@ static void stdin_cb(evutil_socket_t fd, short event, void *ctx)
     }
 
     if (n == 0) {
-        /* Ctrl+D — EOF on stdin */
         printf("\n[*] EOF on stdin — disconnecting\n");
         bufferevent_free(bev);
         event_base_loopexit(bufferevent_get_base(bev), NULL);
@@ -123,13 +122,9 @@ static void stdin_cb(evutil_socket_t fd, short event, void *ctx)
     }
 
     buf[n] = '\0';
-
-    /* Log what we're sending (mirrors the server's send log) */
     printf("    -> send %zd bytes: \"", n);
     print_escaped_payload(buf, (size_t)n);
     printf("\"\n");
-
-    /* Push into the output evbuffer — Libevent sends it */
     bufferevent_write(bev, buf, n);
 }
 static void sigint_cb(evutil_socket_t sig, short flags, void *arg)
