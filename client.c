@@ -224,8 +224,6 @@ int main(int argc, char *argv[])
     printf("=== BeejNet Client ===\n");
     printf("Connecting to %s:%s ...\n", server_ip, port);
     event_base_dispatch(base);
-
-    /* Cleanup */
     event_free(stdin_ev);
     event_free(sig_ev);
     event_base_free(base);
