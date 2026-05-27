@@ -198,24 +198,23 @@ int main(int argc, char *argv[])
 
     freeaddrinfo(servinfo);
     struct event *stdin_ev = event_new(base, STDIN_FILENO,
-                                       EV_READ | EV_PERSIST,
-                                       stdin_cb, bev);
-    if (!stdin_ev || event_add(stdin_ev, NULL) < 0) {
-        fprintf(stderr, "stdin event setup failed\n");
-        if (stdin_ev) event_free(stdin_ev);
-        event_base_free(base);
-        return 1;
-    }
+                                   EV_READ | EV_PERSIST,
+                                   stdin_cb, bev);
+if (!stdin_ev || event_add(stdin_ev, NULL) < 0) {          // ✅ NULL + event_add checked
+    fprintf(stderr, "stdin event setup failed\n");
+    if (stdin_ev) event_free(stdin_ev);                    // ✅ event_free on error
+    event_base_free(base);
+    return 1;
+}
 
-    /* Graceful Ctrl+C */
-    struct event *sig_ev = evsignal_new(base, SIGINT, sigint_cb, base);
-    if (!sig_ev || event_add(sig_ev, NULL) < 0) {
-        fprintf(stderr, "SIGINT event setup failed\n");
-        if (sig_ev) event_free(sig_ev);
-        event_free(stdin_ev);
-        event_base_free(base);
-        return 1;
-    }
+struct event *sig_ev = evsignal_new(base, SIGINT, sigint_cb, base);
+if (!sig_ev || event_add(sig_ev, NULL) < 0) {              // ✅ NULL + event_add checked
+    fprintf(stderr, "SIGINT event setup failed\n");
+    if (sig_ev) event_free(sig_ev);                        // ✅ event_free on error
+    event_free(stdin_ev);                                  // ✅ stdin_ev freed in sig_ev error path
+    event_base_free(base);
+    return 1;
+}
 
     printf("=== BeejNet Client ===\n");
     printf("Connecting to %s:%s ...\n", server_ip, port);
