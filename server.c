@@ -218,8 +218,12 @@ for (p = servinfo; p != NULL; p = p->ai_next) {
         close(sockfd);
         return 1;
     }
-
-    evutil_make_socket_nonblocking(sockfd);
+   if (evutil_make_socket_nonblocking(sockfd) == -1) {
+        fprintf(stderr, "evutil_make_socket_nonblocking failed\n");
+        event_base_free(base);
+        close(sockfd);
+        return 1;
+    }
 
     /* SIGINT handler — clean shutdown instead of Ctrl+C killing mid-loop */
     struct event *sig_ev = evsignal_new(base, SIGINT, sigint_cb, base);
