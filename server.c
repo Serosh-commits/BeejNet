@@ -261,6 +261,7 @@ for (p = servinfo; p != NULL; p = p->ai_next) {
     event_base_dispatch(base);
     evconnlistener_free(listener);   /* also closes sockfd */
     event_free(sig_ev);
+    bufferevent_free(bev);
     event_base_free(base);
     return 0;
 }
