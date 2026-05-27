@@ -94,7 +94,6 @@ static void eventcb(struct bufferevent *bev, short events, void *ctx)
         printf("\n[-] Connection timed out\n");
     }
 
-    bufferevent_free(bev);
     event_base_loopexit(base, NULL);
 }
 static void stdin_cb(evutil_socket_t fd, short event, void *ctx)
@@ -116,7 +115,6 @@ static void stdin_cb(evutil_socket_t fd, short event, void *ctx)
 
     if (n == 0) {
         printf("\n[*] EOF on stdin — disconnecting\n");
-        bufferevent_free(bev);
         event_base_loopexit(bufferevent_get_base(bev), NULL);
         return;
     }
@@ -205,7 +203,6 @@ int main(int argc, char *argv[])
     if (!stdin_ev || event_add(stdin_ev, NULL) < 0) {
         fprintf(stderr, "stdin event setup failed\n");
         if (stdin_ev) event_free(stdin_ev);
-        bufferevent_free(bev);
         event_base_free(base);
         return 1;
     }
@@ -216,7 +213,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "SIGINT event setup failed\n");
         if (sig_ev) event_free(sig_ev);
         event_free(stdin_ev);
-        bufferevent_free(bev);
         event_base_free(base);
         return 1;
     }
@@ -226,6 +222,7 @@ int main(int argc, char *argv[])
     event_base_dispatch(base);
     event_free(stdin_ev);
     event_free(sig_ev);
+    buffer_event_free(bev);
     event_base_free(base);
 
     printf("[*] Disconnected.\n");
