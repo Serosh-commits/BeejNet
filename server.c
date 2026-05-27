@@ -98,7 +98,7 @@ static void accept_cb(
 ) {
     struct event_base *base = evconnlistener_get_base(listener);
 
-    /* Allocate per-connection state — mirrors the old stack variables */
+    /* Allocate per-connection state — stays in heap memory */
     conn_ctx_t *c = calloc(1, sizeof(*c));
     if (!c) { EVUTIL_CLOSESOCKET(fd); return; }
     inet_ntop(addr->sa_family, get_in_addr(addr),
@@ -121,8 +121,7 @@ static void accept_cb(
     bufferevent_setcb(bev, readcb, NULL, eventcb, c);
   
     bufferevent_setwatermark(bev, EV_READ, 1, MAXBUFSIZE);
-
-    /* Activate I/O */
+    
     bufferevent_enable(bev, EV_READ | EV_WRITE);
 }
 
@@ -143,9 +142,6 @@ static void sigint_cb(evutil_socket_t sig, short flags, void *arg)
     event_base_loopexit(base, NULL);
     (void)sig; (void)flags;
 }
-
-/* main */
-
 int main(void)
 {
     int              sockfd, yes = 1, rv;
@@ -162,35 +158,45 @@ int main(void)
         exit(1);
     }
 
-    /* getaddrinfo / socket / setsockopt / bind */
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family   = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags    = AI_PASSIVE;
+   // Clear hints and set preferences: TCP server, auto-fill my IP
+memset(&hints, 0, sizeof hints);
+hints.ai_family   = AF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+hints.ai_flags    = AI_PASSIVE;
 
-    if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
+// Look up available addresses to bind to
+if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    return 1;
+}
+
+// Try each address until one works
+for (p = servinfo; p != NULL; p = p->ai_next) {
+
+    // Create a socket
+    sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    if (sockfd == -1) {
+        perror("server: socket");
+        continue;
     }
 
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-        sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (sockfd == -1) {
-            perror("server: socket");
-            continue;
-        }
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-            perror("setsockopt");
-            close(sockfd);
-            exit(1);
-        }
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            perror("server: bind");
-            close(sockfd);
-            continue;
-        }
-        break;
+    // Allow port reuse so we don't get "Address already in use" on restart
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+        perror("setsockopt");
+        close(sockfd);
+        exit(1);
     }
+
+    // Bind the socket to the port
+    if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+        close(sockfd);
+        perror("server: bind");
+        continue;
+    }
+
+    // Bound successfully, stop trying
+    break;
+}
 
     freeaddrinfo(servinfo);
 
@@ -198,8 +204,6 @@ int main(void)
         fprintf(stderr, "server: failed to bind\n");
         exit(1);
     }
-
-    /* listen */
     if (listen(sockfd, BACKLOG) == -1) {
         perror("listen");
         close(sockfd);
@@ -223,7 +227,6 @@ int main(void)
 
     /*
      * Hand the already-bound, already-listening sockfd to evconnlistener.
-     *
      * evconnlistener_new  (not _new_bind) takes an existing fd.
      * backlog = -1  =>  skip the listen() call (we already called it above).
      * LEV_OPT_CLOSE_ON_FREE  =>  evconnlistener_free() closes sockfd for us.
@@ -256,8 +259,6 @@ int main(void)
      * All accept/read/write/close happens through the callbacks above.
      */
     event_base_dispatch(base);
-
-    /* Cleanup*/
     evconnlistener_free(listener);   /* also closes sockfd */
     event_free(sig_ev);
     event_base_free(base);
